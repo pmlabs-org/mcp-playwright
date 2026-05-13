@@ -27,7 +27,7 @@ RUN npm ci --omit=dev && \
 # Downloads the Chromium binary into a cacheable layer.
 FROM base AS browser
 
-RUN npx -y playwright-core install --no-shell chromium
+RUN npx -y playwright-core install chromium
 
 # ------------------------------
 # Runtime
