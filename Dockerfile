@@ -38,7 +38,9 @@ ARG PLAYWRIGHT_BROWSERS_PATH
 ARG USERNAME=node
 ENV NODE_ENV=production
 
-RUN chown -R ${USERNAME}:${USERNAME} node_modules
+RUN chown -R ${USERNAME}:${USERNAME} node_modules && \
+    mkdir -p /app/.playwright-mcp && \
+    chown ${USERNAME}:${USERNAME} /app/.playwright-mcp
 
 USER ${USERNAME}
 
