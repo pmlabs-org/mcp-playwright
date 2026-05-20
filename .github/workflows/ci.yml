@@ -1,10 +1,11 @@
 name: CI
 
 on:
-  push:
-    branches: [ main ]
+  # Push trigger disabled on our fork — playwright is built from source on the droplet,
+  # not via GHCR. Microsoft's full 3-platform test suite is expensive and unnecessary here.
   pull_request:
     branches: [ main ]
+  workflow_dispatch:
 
 jobs:
   lint:
