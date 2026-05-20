@@ -38,7 +38,7 @@ COPY *.json *.js *.ts .
 # Downloads the Chromium binary into a cacheable layer.
 FROM base AS browser
 
-RUN npx -y playwright-core install --no-shell chromium
+RUN npx -y playwright-core install chromium
 
 # ------------------------------
 # Runtime
@@ -49,7 +49,9 @@ ARG PLAYWRIGHT_BROWSERS_PATH
 ARG USERNAME=node
 ENV NODE_ENV=production
 
-RUN chown -R ${USERNAME}:${USERNAME} node_modules
+RUN chown -R ${USERNAME}:${USERNAME} node_modules && \
+    mkdir -p /app/.playwright-mcp && \
+    chown ${USERNAME}:${USERNAME} /app/.playwright-mcp
 
 USER ${USERNAME}
 
