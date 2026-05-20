@@ -56,7 +56,7 @@ RUN chown -R ${USERNAME}:${USERNAME} node_modules && \
 USER ${USERNAME}
 
 COPY --from=browser --chown=${USERNAME}:${USERNAME} ${PLAYWRIGHT_BROWSERS_PATH} ${PLAYWRIGHT_BROWSERS_PATH}
-COPY --chown=${USERNAME}:${USERNAME} cli.js package.json ./
+COPY --chown=${USERNAME}:${USERNAME} cli.js oauth-server.js package.json ./
 
 
 # OAuth proxy spawns playwright-mcp on port 8081 internally and exposes OAuth + MCP on $PORT
