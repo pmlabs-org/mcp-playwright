@@ -418,7 +418,7 @@ Playwright MCP server supports following arguments. They can be provided in the 
 | --proxy-server <proxy> | specify proxy server, for example "http://myproxy:3128" or "socks5://myproxy:8080"<br>*env* `PLAYWRIGHT_MCP_PROXY_SERVER` |
 | --sandbox | enable the sandbox for all process types that are normally not sandboxed.<br>*env* `PLAYWRIGHT_MCP_SANDBOX` |
 | --save-session | Whether to save the Playwright MCP session into the output directory.<br>*env* `PLAYWRIGHT_MCP_SAVE_SESSION` |
-| --secrets <path> | path to a file containing secrets in the dotenv format<br>*env* `PLAYWRIGHT_MCP_SECRETS` |
+| --secrets <path> | path to a file containing secrets in the dotenv format<br>*env* `PLAYWRIGHT_MCP_SECRETS_FILE` |
 | --shared-browser-context | reuse the same browser context between all connected HTTP clients.<br>*env* `PLAYWRIGHT_MCP_SHARED_BROWSER_CONTEXT` |
 | --snapshot-mode <mode> | when taking snapshots for responses, specifies the mode to use. Can be "full" or "none". Default is "full".<br>*env* `PLAYWRIGHT_MCP_SNAPSHOT_MODE` |
 | --storage-state <path> | path to the storage state file for isolated sessions.<br>*env* `PLAYWRIGHT_MCP_STORAGE_STATE` |
@@ -453,6 +453,9 @@ Persistent profile is located at the following locations and you can override it
 
 `{workspace-hash}` is derived from the MCP client's workspace root, so different projects get separate profiles automatically.
 
+> [!IMPORTANT]
+> A persistent profile can only be used by one browser instance at a time, so concurrent MCP clients sharing the same workspace will conflict. To run several clients in parallel, start each additional client with `--isolated` or point it at a distinct `--user-data-dir`.
+
 **Isolated**
 
 In the isolated mode, each session is started in the isolated profile. Every time you ask MCP to close the browser,
@@ -477,7 +480,7 @@ state [here](https://playwright.dev/docs/auth).
 
 **Browser Extension**
 
-The Playwright MCP Chrome Extension allows you to connect to existing browser tabs and leverage your logged-in sessions and browser state. See [packages/extension/README.md](packages/extension/README.md) for installation and setup instructions.
+The Playwright MCP Chrome Extension allows you to connect to existing browser tabs and leverage your logged-in sessions and browser state. See [microsoft/playwright › packages/extension](https://github.com/microsoft/playwright/tree/main/packages/extension#readme) for installation and setup instructions.
 
 ### Initial state
 
@@ -776,7 +779,7 @@ docker run -d -i --rm --init --pull=always \
   --name playwright \
   -p 8931:8931 \
   mcr.microsoft.com/playwright/mcp \
-  cli.js --headless --browser chromium --no-sandbox --port 8931 --host 0.0.0.0
+  /app/cli.js --headless --browser chromium --no-sandbox --port 8931 --host 0.0.0.0
 ```
 
 The server will listen on host port **8931** and can be reached by any MCP client.  
@@ -863,6 +866,18 @@ http.createServer(async (req, res) => {
 
 <!-- NOTE: This has been generated via update-readme.js -->
 
+- **browser_drop**
+  - Title: Drop files or data onto an element
+  - Description: Drop files or MIME-typed data onto an element, as if dragged from outside the page. At least one of "paths" or "data" must be provided.
+  - Parameters:
+    - `element` (string, optional): Human-readable element description used to obtain permission to interact with the element
+    - `target` (string): Exact target element reference from the page snapshot, or a unique element selector
+    - `paths` (array, optional): Absolute paths to files to drop onto the element.
+    - `data` (object, optional): Data to drop, as a map of MIME type to string value (e.g. {"text/plain": "hello", "text/uri-list": "https://example.com"}).
+  - Read-only: **false**
+
+<!-- NOTE: This has been generated via update-readme.js -->
+
 - **browser_evaluate**
   - Title: Evaluate JavaScript
   - Description: Evaluate JavaScript expression on page or element
@@ -930,13 +945,22 @@ http.createServer(async (req, res) => {
 
 <!-- NOTE: This has been generated via update-readme.js -->
 
+- **browser_network_request**
+  - Title: Show network request details
+  - Description: Returns full details (headers and body) of a single network request, or a single part if `part` is set. Use the number from browser_network_requests.
+  - Parameters:
+    - `index` (integer): 1-based index of the request, as printed by browser_network_requests.
+    - `part` (string, optional): Return only this part of the request. Omit to return full details.
+    - `filename` (string, optional): Filename to save the result to. If not provided, output is returned as text.
+  - Read-only: **true**
+
+<!-- NOTE: This has been generated via update-readme.js -->
+
 - **browser_network_requests**
   - Title: List network requests
-  - Description: Returns all network requests since loading the page
+  - Description: Returns a numbered list of network requests since loading the page. Use browser_network_request with the number to get full details.
   - Parameters:
     - `static` (boolean): Whether to include successful static resources like images, fonts, scripts, etc. Defaults to false.
-    - `requestBody` (boolean): Whether to include request body. Defaults to false.
-    - `requestHeaders` (boolean): Whether to include request headers. Defaults to false.
     - `filter` (string, optional): Only return requests whose URL matches this regexp (e.g. "/api/.*user").
     - `filename` (string, optional): Filename to save the network requests to. If not provided, requests are returned as text.
   - Read-only: **true**
@@ -962,9 +986,9 @@ http.createServer(async (req, res) => {
 
 <!-- NOTE: This has been generated via update-readme.js -->
 
-- **browser_run_code**
-  - Title: Run Playwright code
-  - Description: Run Playwright code snippet
+- **browser_run_code_unsafe**
+  - Title: Run Playwright code (unsafe)
+  - Description: Run a Playwright code snippet. Unsafe: executes arbitrary JavaScript in the Playwright server process and is RCE-equivalent.
   - Parameters:
     - `code` (string, optional): A JavaScript function containing Playwright code to execute. It will be invoked with a single argument, page, which you can use for any page interaction. For example: `async (page) => { await page.getByRole('button', { name: 'Submit' }).click(); return await page.title(); }`
     - `filename` (string, optional): Load code from the specified file. If both code and filename are provided, code will be ignored.
@@ -990,6 +1014,7 @@ http.createServer(async (req, res) => {
     - `target` (string, optional): Exact target element reference from the page snapshot, or a unique element selector
     - `filename` (string, optional): Save snapshot to markdown file instead of returning it in the response.
     - `depth` (number, optional): Limit the depth of the snapshot tree
+    - `boxes` (boolean, optional): Include each element's bounding box as [box=x,y,width,height] in the snapshot. Coordinates are viewport-relative, in CSS pixels (Element.getBoundingClientRect)
   - Read-only: **true**
 
 <!-- NOTE: This has been generated via update-readme.js -->
@@ -1278,6 +1303,14 @@ http.createServer(async (req, res) => {
 
 <!-- NOTE: This has been generated via update-readme.js -->
 
+- **browser_annotate**
+  - Title: Annotate the current page
+  - Description: Open the Playwright Dashboard in annotation mode for the current page and wait for the user to draw annotations. Returns the annotated screenshot, ARIA snapshot, and the list of annotations.
+  - Parameters: None
+  - Read-only: **true**
+
+<!-- NOTE: This has been generated via update-readme.js -->
+
 - **browser_hide_highlight**
   - Title: Hide element highlight
   - Description: Remove a highlight overlay previously added for the element.
@@ -1295,14 +1328,6 @@ http.createServer(async (req, res) => {
     - `element` (string, optional): Human-readable element description used to obtain permission to interact with the element
     - `target` (string): Exact target element reference from the page snapshot, or a unique element selector
     - `style` (string, optional): Additional inline CSS applied to the highlight overlay, e.g. "outline: 2px dashed red".
-  - Read-only: **true**
-
-<!-- NOTE: This has been generated via update-readme.js -->
-
-- **browser_pick_locator**
-  - Title: Pick element locator
-  - Description: Wait for the user to pick an element in the browser and return its ref and locator.
-  - Parameters: None
   - Read-only: **true**
 
 <!-- NOTE: This has been generated via update-readme.js -->

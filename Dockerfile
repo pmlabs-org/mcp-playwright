@@ -12,14 +12,25 @@ ENV PLAYWRIGHT_BROWSERS_PATH=${PLAYWRIGHT_BROWSERS_PATH}
 
 WORKDIR /app
 
-# Copy workspace manifests so npm ci can resolve all packages
-COPY package.json package-lock.json ./
-COPY packages/playwright-mcp/package.json     ./packages/playwright-mcp/
-COPY packages/playwright-cli-stub/package.json ./packages/playwright-cli-stub/
-COPY packages/extension/package.json          ./packages/extension/
+RUN --mount=type=cache,target=/root/.npm,sharing=locked,id=npm-cache \
+    --mount=type=bind,source=package.json,target=package.json \
+    --mount=type=bind,source=package-lock.json,target=package-lock.json \
+  npm ci --omit=dev && \
+  # Install system dependencies for playwright
+  npx -y playwright-core install-deps chromium
 
-RUN npm ci --omit=dev && \
-    npx -y playwright-core install-deps chromium
+# ------------------------------
+# Builder
+# ------------------------------
+FROM base AS builder
+
+RUN --mount=type=cache,target=/root/.npm,sharing=locked,id=npm-cache \
+    --mount=type=bind,source=package.json,target=package.json \
+    --mount=type=bind,source=package-lock.json,target=package-lock.json \
+  npm ci
+
+# Copy the rest of the app
+COPY *.json *.js *.ts .
 
 # ------------------------------
 # Browser
@@ -43,7 +54,7 @@ RUN chown -R ${USERNAME}:${USERNAME} node_modules
 USER ${USERNAME}
 
 COPY --from=browser --chown=${USERNAME}:${USERNAME} ${PLAYWRIGHT_BROWSERS_PATH} ${PLAYWRIGHT_BROWSERS_PATH}
-COPY --chown=${USERNAME}:${USERNAME} packages/playwright-mcp/cli.js packages/playwright-mcp/oauth-server.js packages/playwright-mcp/package.json ./
+COPY --chown=${USERNAME}:${USERNAME} cli.js package.json ./
 
 
 # OAuth proxy spawns playwright-mcp on port 8081 internally and exposes OAuth + MCP on $PORT
