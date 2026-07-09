@@ -175,9 +175,26 @@ function proxyRequest(req, res) {
         'len=' + reqBody.length, reqBody.slice(0, 200).toString());
     }
 
+    // For 'initialize' requests: Anthropic's connector sends capabilities.roots,
+    // which causes playwright-mcp to call server.listRoots() inside initializeServer().
+    // With no GET SSE channel, listRoots() blocks for 60s before its catch handler
+    // fires — making every subsequent tool call time out. Strip 'roots' so playwright-mcp
+    // skips listRoots() entirely.
+    let forwardBody = reqBody;
+    if (reqBody.length > 0 && req.url === '/mcp') {
+      try {
+        const parsed = JSON.parse(reqBody.toString());
+        if (parsed.method === 'initialize' && parsed.params?.capabilities?.roots !== undefined) {
+          delete parsed.params.capabilities.roots;
+          forwardBody = Buffer.from(JSON.stringify(parsed));
+          console.log('[PROXY] stripped capabilities.roots from initialize, session=' + (req.headers['mcp-session-id'] || 'NONE'));
+        }
+      } catch (_) { /* not JSON — forward as-is */ }
+    }
+
     // Overwrite content-length with the actual body size in case Caddy mismatches.
-    if (reqBody.length > 0) {
-      headers['content-length'] = String(reqBody.length);
+    if (forwardBody.length > 0) {
+      headers['content-length'] = String(forwardBody.length);
       delete headers['transfer-encoding'];
     }
 
@@ -276,7 +293,7 @@ function proxyRequest(req, res) {
     if (!res.headersSent) json(res, 502, { error: 'bad_gateway' });
     else res.destroy();
   });
-  if (reqBody.length > 0) proxy.write(reqBody);
+  if (forwardBody.length > 0) proxy.write(forwardBody);
   proxy.end();
   }); // end req.on('end')
 }
