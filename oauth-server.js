@@ -372,6 +372,7 @@ const server = http.createServer(async (req, res) => {
 const mcpProcess = spawn('node', [
   'cli.js',
   '--headless', '--browser', 'chromium', '--no-sandbox',
+  '--shared-browser-context',
   '--port', String(INTERNAL_PORT), '--host', '127.0.0.1',
 ], { stdio: 'inherit' });
 
