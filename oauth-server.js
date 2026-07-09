@@ -102,7 +102,7 @@ function proxyRequest(req, res) {
     }
     res.writeHead(proxyRes.statusCode, proxyRes.headers);
     proxyRes.pipe(res, { end: true });
-    if (req.method === 'GET') {
+    if (req.method === 'GET' || (proxyRes.headers['content-type'] || '').includes('text/event-stream')) {
       res.on('close', () => {
         proxyRes.unpipe(res);
         proxyRes.resume();
