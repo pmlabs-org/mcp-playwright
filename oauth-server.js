@@ -75,7 +75,7 @@ function waitForMcp() {
  * Anthropic connector's timeout and causes every initial request to fail.
  */
 function warmUpBrowser() {
-  const makePost = (body, sessionId) => new Promise((resolve, reject) => {
+  const makePost = (body, sessionId, earlyFlush = false) => new Promise((resolve, reject) => {
     const b = JSON.stringify(body);
     const hdrs = {
       'Content-Type': 'application/json',
@@ -86,7 +86,22 @@ function warmUpBrowser() {
     if (sessionId) hdrs['mcp-session-id'] = sessionId;
     const r = http.request(
       { hostname: '127.0.0.1', port: INTERNAL_PORT, path: '/mcp', method: 'POST', headers: hdrs },
-      (res) => { let d = ''; res.on('data', c => (d += c)); res.on('end', () => resolve({ headers: res.headers, body: d })); }
+      (res) => {
+        let d = '';
+        let done = false;
+        res.on('data', c => {
+          d += c;
+          // earlyFlush: resolve as soon as the first SSE data: line arrives so we
+          // don't block on playwright-mcp holding the stream open after the result.
+          if (earlyFlush && !done && d.includes('\ndata: ')) {
+            done = true;
+            res.destroy();
+            resolve({ headers: res.headers, body: d });
+          }
+        });
+        res.on('end', () => { if (!done) resolve({ headers: res.headers, body: d }); });
+        res.on('error', () => { if (!done) resolve({ headers: res.headers, body: d }); });
+      }
     );
     r.on('error', reject);
     r.write(b);
@@ -99,7 +114,11 @@ function warmUpBrowser() {
     const r1 = await makePost({ jsonrpc: '2.0', id: 1, method: 'initialize', params: { protocolVersion: '2025-03-26', capabilities: {}, clientInfo: { name: 'warmup', version: '1' } } });
     const sid = r1.headers['mcp-session-id'];
     await makePost({ jsonrpc: '2.0', method: 'notifications/initialized' }, sid);
-    await makePost({ jsonrpc: '2.0', id: 2, method: 'tools/call', params: { name: 'browser_navigate', arguments: { url: 'about:blank' } } }, sid);
+    // Navigate to a real external URL (not about:blank) so Chrome's full
+    // network stack — DNS resolver, TLS session cache, HTTP/2 connection pool —
+    // is initialised before the first real client request. about:blank skips all
+    // of that and the first real external navigate still cold-starts at ~60s.
+    await makePost({ jsonrpc: '2.0', id: 2, method: 'tools/call', params: { name: 'browser_navigate', arguments: { url: 'https://example.com' } } }, sid, true);
     console.log(`Chromium ready in ${Date.now() - t0}ms`);
   })().catch((err) => {
     console.error('Warm-up failed (proceeding anyway):', err.message);
@@ -207,7 +226,7 @@ function proxyRequest(req, res) {
         responded = true;
         const jsonBody = match[1];
         const sid = req.headers['mcp-session-id'] || 'NONE';
-        console.log('[PROXY] POST SSE→JSON', 'session=' + sid, 'bytes=' + jsonBody.length);
+        console.log('[PROXY] POST SSE→JSON', 'session=' + sid, 'bytes=' + jsonBody.length, jsonBody.slice(0, 120));
         const outHeaders = { ...proxyRes.headers };
         outHeaders['content-type'] = 'application/json';
         outHeaders['content-length'] = String(Buffer.byteLength(jsonBody));
