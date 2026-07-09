@@ -113,7 +113,9 @@ function proxyRequest(req, res) {
   if (req.url === '/mcp') {
     console.log('[PROXY]', req.method, req.url,
       'session=' + (req.headers['mcp-session-id'] || 'NONE'),
-      'accept=' + (req.headers['accept'] || 'NONE'));
+      'cl=' + (req.headers['content-length'] || 'none'),
+      'te=' + (req.headers['transfer-encoding'] || 'none'));
+    req.once('end', () => console.log('[REQ END]', req.method, 'session=' + (req.headers['mcp-session-id'] || 'NONE')));
   }
 
   const headers = { ...req.headers, host: `localhost:${INTERNAL_PORT}` };
