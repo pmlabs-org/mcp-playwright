@@ -114,18 +114,24 @@ function proxyRequest(req, res) {
       return;
     }
 
-    // POST SSE responses: buffer and re-emit as application/json.
-    // Anthropic's claude.ai connector sends Accept: application/json, text/event-stream
-    // for POST /mcp but only processes application/json results — the text/event-stream
-    // in the Accept header applies only to GET SSE streams. playwright-mcp v0.0.77
-    // changed all POST responses to text/event-stream, breaking the connector.
+    // POST SSE responses: convert to application/json and respond immediately
+    // when the first complete SSE data line arrives.
+    //
+    // playwright-mcp v0.0.77 changed all POST responses to text/event-stream.
+    // Anthropic's claude.ai connector only processes application/json for POST
+    // results (text/event-stream in the Accept header is for GET SSE streams).
+    // Additionally, playwright-mcp holds the SSE stream open after the result
+    // event (acting as a persistent channel), so waiting for proxyRes.on('end')
+    // would stall for ~60s before we could forward the result.
     if (req.method === 'POST' && isSSE) {
-      const chunks = [];
-      proxyRes.on('data', chunk => chunks.push(chunk));
-      proxyRes.on('end', () => {
-        const raw = Buffer.concat(chunks).toString();
-        const match = raw.match(/^data: (.+)$/m);
-        const jsonBody = match ? match[1] : raw;
+      let buf = '';
+      let responded = false;
+      const flush = () => {
+        if (responded) return;
+        const match = buf.match(/^data: (.+)$/m);
+        if (!match) return;
+        responded = true;
+        const jsonBody = match[1];
         const sid = req.headers['mcp-session-id'] || 'NONE';
         console.log('[PROXY] POST SSE→JSON', 'session=' + sid, 'bytes=' + jsonBody.length);
         const outHeaders = { ...proxyRes.headers };
@@ -134,7 +140,12 @@ function proxyRequest(req, res) {
         delete outHeaders['transfer-encoding'];
         res.writeHead(proxyRes.statusCode, outHeaders);
         res.end(jsonBody);
-      });
+        proxyRes.resume(); // drain remaining SSE stream to prevent backpressure
+      };
+      proxyRes.on('data', chunk => { buf += chunk.toString(); flush(); });
+      proxyRes.on('end', flush); // fallback if stream closes before data: line seen
+      // drain on client-close to prevent backpressure killing the session
+      res.on('close', () => { if (!responded) responded = true; proxyRes.resume(); });
       proxyRes.on('error', (err) => {
         console.error('proxyRes error:', err.message);
         if (!res.headersSent) json(res, 502, { error: 'bad_gateway' });
