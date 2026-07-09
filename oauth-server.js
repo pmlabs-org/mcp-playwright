@@ -144,6 +144,10 @@ function proxyRequest(req, res) {
   const proxy = http.request(opts, (proxyRes) => {
     const ct = proxyRes.headers['content-type'] || '';
     const isSSE = ct.includes('text/event-stream');
+    if (req.url === '/mcp') {
+      console.log('[PROXY RESP]', req.method, proxyRes.statusCode,
+        'ct=' + ct, 'session=' + (req.headers['mcp-session-id'] || 'NONE'));
+    }
 
     if (proxyRes.statusCode >= 400) {
       let body = '';
