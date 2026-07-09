@@ -172,7 +172,7 @@ function proxyRequest(req, res) {
         console.warn('[REQ BODY MISMATCH]', 'cl-header=' + clHeader, 'actual=' + reqBody.length);
       }
       console.log('[REQ BODY]', 'session=' + (req.headers['mcp-session-id'] || 'NONE'),
-        'len=' + reqBody.length, reqBody.slice(0, 200).toString());
+        'len=' + reqBody.length);
     }
 
     // For 'initialize' requests: Anthropic's connector sends capabilities.roots,
@@ -236,22 +236,14 @@ function proxyRequest(req, res) {
     if (req.method === 'POST' && isSSE) {
       let buf = '';
       let responded = false;
-      let lineCount = 0;
       const flush = () => {
-        // Log EVERY data: line received so we can see pings/listRoots before results
-        const lines = buf.match(/^data: (.+)$/mg) || [];
-        for (let i = lineCount; i < lines.length; i++) {
-          const sid = req.headers['mcp-session-id'] || 'NONE';
-          console.log('[PROXY] SSE line', i, 'session=' + sid, lines[i].slice(0, 150));
-        }
-        lineCount = lines.length;
         if (responded) return;
         const match = buf.match(/^data: (.+)$/m);
         if (!match) return;
         responded = true;
         const jsonBody = match[1];
         const sid = req.headers['mcp-session-id'] || 'NONE';
-        console.log('[PROXY] POST SSE→JSON', 'session=' + sid, 'bytes=' + jsonBody.length, jsonBody.slice(0, 120));
+        console.log('[PROXY] POST SSE→JSON', 'session=' + sid, 'bytes=' + jsonBody.length);
         const outHeaders = { ...proxyRes.headers };
         outHeaders['content-type'] = 'application/json';
         outHeaders['content-length'] = String(Buffer.byteLength(jsonBody));
