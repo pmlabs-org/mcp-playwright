@@ -114,16 +114,25 @@ function proxyRequest(req, res) {
     console.log('[PROXY]', req.method, req.url,
       'session=' + (req.headers['mcp-session-id'] || 'NONE'),
       'cl=' + (req.headers['content-length'] || 'none'),
-      'te=' + (req.headers['transfer-encoding'] || 'none'));
+      'te=' + (req.headers['transfer-encoding'] || 'none'),
+      'extra-headers=' + JSON.stringify(Object.keys(req.headers).filter(
+        h => !['host','content-type','accept','content-length','transfer-encoding','mcp-session-id'].includes(h)
+      )));
     req.once('end', () => console.log('[REQ END]', req.method, 'session=' + (req.headers['mcp-session-id'] || 'NONE')));
   }
 
-  const headers = { ...req.headers, host: `localhost:${INTERNAL_PORT}` };
-  // Strip headers that cause the internal server to reject proxied requests:
-  // - authorization: the Bearer token is consumed by this proxy, not playwright-mcp
-  // - origin: prevents CORS rejection when request originates from claude.ai
-  delete headers['authorization'];
-  delete headers['origin'];
+  // Forward only the headers playwright-mcp needs. Forwarding all incoming
+  // headers (e.g. accept-encoding, connection, x-forwarded-for, etc.) can
+  // cause playwright-mcp to stall — empirically observed as 60s delays on
+  // browser_navigate even with a warm Chromium, while direct calls are <1s.
+  const headers = {
+    host: `localhost:${INTERNAL_PORT}`,
+    'content-type': req.headers['content-type'] || 'application/json',
+    accept: req.headers['accept'] || 'application/json, text/event-stream',
+  };
+  if (req.headers['content-length']) headers['content-length'] = req.headers['content-length'];
+  if (req.headers['transfer-encoding']) headers['transfer-encoding'] = req.headers['transfer-encoding'];
+  if (req.headers['mcp-session-id']) headers['mcp-session-id'] = req.headers['mcp-session-id'];
 
   const opts = {
     hostname: '127.0.0.1',
