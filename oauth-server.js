@@ -68,6 +68,44 @@ function waitForMcp() {
   });
 }
 
+/**
+ * Pre-warm Chromium by doing a minimal browser session before the proxy
+ * starts accepting external connections. Without this, the first real
+ * browser_navigate takes ~60s (Chromium cold start), which exceeds the
+ * Anthropic connector's timeout and causes every initial request to fail.
+ */
+function warmUpBrowser() {
+  const makePost = (body, sessionId) => new Promise((resolve, reject) => {
+    const b = JSON.stringify(body);
+    const hdrs = {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json, text/event-stream',
+      'Host': `localhost:${INTERNAL_PORT}`,
+      'Content-Length': String(Buffer.byteLength(b)),
+    };
+    if (sessionId) hdrs['mcp-session-id'] = sessionId;
+    const r = http.request(
+      { hostname: '127.0.0.1', port: INTERNAL_PORT, path: '/mcp', method: 'POST', headers: hdrs },
+      (res) => { let d = ''; res.on('data', c => (d += c)); res.on('end', () => resolve({ headers: res.headers, body: d })); }
+    );
+    r.on('error', reject);
+    r.write(b);
+    r.end();
+  });
+
+  return (async () => {
+    console.log('Warming up Chromium (first launch may take ~60s)...');
+    const t0 = Date.now();
+    const r1 = await makePost({ jsonrpc: '2.0', id: 1, method: 'initialize', params: { protocolVersion: '2025-03-26', capabilities: {}, clientInfo: { name: 'warmup', version: '1' } } });
+    const sid = r1.headers['mcp-session-id'];
+    await makePost({ jsonrpc: '2.0', method: 'notifications/initialized' }, sid);
+    await makePost({ jsonrpc: '2.0', id: 2, method: 'tools/call', params: { name: 'browser_navigate', arguments: { url: 'about:blank' } } }, sid);
+    console.log(`Chromium ready in ${Date.now() - t0}ms`);
+  })().catch((err) => {
+    console.error('Warm-up failed (proceeding anyway):', err.message);
+  });
+}
+
 /** Forward req → internal playwright-mcp, pipe response back (handles SSE). */
 function proxyRequest(req, res) {
   // One-line visibility per /mcp request so session/header flow is debuggable
@@ -336,11 +374,14 @@ process.on('SIGTERM', () => {
 // Start proxy after MCP is ready
 // ---------------------------------------------------------------------------
 
-waitForMcp().then(() => {
-  server.listen(PORT, '0.0.0.0', () => {
-    console.log(`OAuth proxy listening on port ${PORT} → playwright-mcp on port ${INTERNAL_PORT}`);
+waitForMcp()
+  .then(() => warmUpBrowser())
+  .then(() => {
+    server.listen(PORT, '0.0.0.0', () => {
+      console.log(`OAuth proxy listening on port ${PORT} → playwright-mcp on port ${INTERNAL_PORT}`);
+    });
+  })
+  .catch((err) => {
+    console.error('Failed to start:', err);
+    process.exit(1);
   });
-}).catch((err) => {
-  console.error('Failed to start:', err);
-  process.exit(1);
-});
