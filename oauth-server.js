@@ -102,6 +102,17 @@ function proxyRequest(req, res) {
     }
     res.writeHead(proxyRes.statusCode, proxyRes.headers);
     proxyRes.pipe(res, { end: true });
+    if (req.method === 'GET') {
+      res.on('close', () => {
+        proxyRes.unpipe(res);
+        proxyRes.resume();
+      });
+    }
+    proxyRes.on('error', (err) => {
+      console.error('proxyRes error:', err.message);
+      if (!res.headersSent) json(res, 502, { error: 'bad_gateway' });
+      else try { res.destroy(); } catch (_) {}
+    });
   });
   proxy.on('error', (err) => {
     console.error('Proxy error:', err.message);
