@@ -93,16 +93,61 @@ function proxyRequest(req, res) {
     headers,
   };
   const proxy = http.request(opts, (proxyRes) => {
+    const ct = proxyRes.headers['content-type'] || '';
+    const isSSE = ct.includes('text/event-stream');
+
     if (proxyRes.statusCode >= 400) {
       let body = '';
       proxyRes.on('data', chunk => { body += chunk; });
       proxyRes.on('end', () => {
         console.error(`Upstream ${proxyRes.statusCode} for ${req.method} ${req.url}: ${body.slice(0, 500)}`);
+        if (!res.headersSent) {
+          res.writeHead(proxyRes.statusCode, proxyRes.headers);
+          res.end(body);
+        }
       });
+      proxyRes.on('error', (err) => {
+        console.error('proxyRes error:', err.message);
+        if (!res.headersSent) json(res, 502, { error: 'bad_gateway' });
+        else try { res.destroy(); } catch (_) {}
+      });
+      return;
     }
+
+    // POST SSE responses: buffer and re-emit as application/json.
+    // Anthropic's claude.ai connector sends Accept: application/json, text/event-stream
+    // for POST /mcp but only processes application/json results — the text/event-stream
+    // in the Accept header applies only to GET SSE streams. playwright-mcp v0.0.77
+    // changed all POST responses to text/event-stream, breaking the connector.
+    if (req.method === 'POST' && isSSE) {
+      const chunks = [];
+      proxyRes.on('data', chunk => chunks.push(chunk));
+      proxyRes.on('end', () => {
+        const raw = Buffer.concat(chunks).toString();
+        const match = raw.match(/^data: (.+)$/m);
+        const jsonBody = match ? match[1] : raw;
+        const sid = req.headers['mcp-session-id'] || 'NONE';
+        console.log('[PROXY] POST SSE→JSON', 'session=' + sid, 'bytes=' + jsonBody.length);
+        const outHeaders = { ...proxyRes.headers };
+        outHeaders['content-type'] = 'application/json';
+        outHeaders['content-length'] = String(Buffer.byteLength(jsonBody));
+        delete outHeaders['transfer-encoding'];
+        res.writeHead(proxyRes.statusCode, outHeaders);
+        res.end(jsonBody);
+      });
+      proxyRes.on('error', (err) => {
+        console.error('proxyRes error:', err.message);
+        if (!res.headersSent) json(res, 502, { error: 'bad_gateway' });
+        else try { res.destroy(); } catch (_) {}
+      });
+      return;
+    }
+
+    // GET SSE (and any non-SSE): pipe with drain on client-close to prevent
+    // backpressure from killing the playwright-mcp session.
     res.writeHead(proxyRes.statusCode, proxyRes.headers);
     proxyRes.pipe(res, { end: true });
-    if (req.method === 'GET' || (proxyRes.headers['content-type'] || '').includes('text/event-stream')) {
+    if (req.method === 'GET' || isSSE) {
       res.on('close', () => {
         proxyRes.unpipe(res);
         proxyRes.resume();
