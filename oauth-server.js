@@ -219,7 +219,15 @@ function proxyRequest(req, res) {
     if (req.method === 'POST' && isSSE) {
       let buf = '';
       let responded = false;
+      let lineCount = 0;
       const flush = () => {
+        // Log EVERY data: line received so we can see pings/listRoots before results
+        const lines = buf.match(/^data: (.+)$/mg) || [];
+        for (let i = lineCount; i < lines.length; i++) {
+          const sid = req.headers['mcp-session-id'] || 'NONE';
+          console.log('[PROXY] SSE line', i, 'session=' + sid, lines[i].slice(0, 150));
+        }
+        lineCount = lines.length;
         if (responded) return;
         const match = buf.match(/^data: (.+)$/m);
         if (!match) return;
