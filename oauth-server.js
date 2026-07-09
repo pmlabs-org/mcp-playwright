@@ -118,7 +118,6 @@ function proxyRequest(req, res) {
       'extra-headers=' + JSON.stringify(Object.keys(req.headers).filter(
         h => !['host','content-type','accept','content-length','transfer-encoding','mcp-session-id'].includes(h)
       )));
-    req.once('end', () => console.log('[REQ END]', req.method, 'session=' + (req.headers['mcp-session-id'] || 'NONE')));
   }
 
   // Forward only the headers playwright-mcp needs. Forwarding all incoming
@@ -141,6 +140,28 @@ function proxyRequest(req, res) {
     method: req.method,
     headers,
   };
+
+  // Buffer the full request body before forwarding.
+  // This lets us detect content-length mismatches and log what playwright-mcp receives.
+  const chunks = [];
+  req.on('data', chunk => chunks.push(chunk));
+  req.on('end', () => {
+    const reqBody = Buffer.concat(chunks);
+    if (req.url === '/mcp') {
+      const clHeader = parseInt(req.headers['content-length'] || '0', 10);
+      if (clHeader && clHeader !== reqBody.length) {
+        console.warn('[REQ BODY MISMATCH]', 'cl-header=' + clHeader, 'actual=' + reqBody.length);
+      }
+      console.log('[REQ BODY]', 'session=' + (req.headers['mcp-session-id'] || 'NONE'),
+        'len=' + reqBody.length, reqBody.slice(0, 200).toString());
+    }
+
+    // Overwrite content-length with the actual body size in case Caddy mismatches.
+    if (reqBody.length > 0) {
+      headers['content-length'] = String(reqBody.length);
+      delete headers['transfer-encoding'];
+    }
+
   const proxy = http.request(opts, (proxyRes) => {
     const ct = proxyRes.headers['content-type'] || '';
     const isSSE = ct.includes('text/event-stream');
@@ -228,7 +249,9 @@ function proxyRequest(req, res) {
     if (!res.headersSent) json(res, 502, { error: 'bad_gateway' });
     else res.destroy();
   });
-  req.pipe(proxy, { end: true });
+  if (reqBody.length > 0) proxy.write(reqBody);
+  proxy.end();
+  }); // end req.on('end')
 }
 
 // ---------------------------------------------------------------------------
