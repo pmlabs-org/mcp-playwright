@@ -432,6 +432,13 @@ const mcpProcess = spawn('node', [
   'cli.js',
   '--headless', '--browser', 'chromium', '--no-sandbox',
   '--shared-browser-context',
+  // Chromium's default headless UA literally contains "HeadlessChrome",
+  // one of the most basic bot-detection signatures there is -- it got
+  // legitimate verification traffic blocked outright by a client site's
+  // hosting-level firewall. Override with the same Chrome version, same
+  // OS family as real team traffic, minus the two automation tells
+  // ("Headless" and the Linux/X11 platform token).
+  '--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36',
   '--port', String(INTERNAL_PORT), '--host', '127.0.0.1',
 ], { stdio: 'inherit' });
 
