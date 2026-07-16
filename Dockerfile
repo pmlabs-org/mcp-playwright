@@ -56,7 +56,10 @@ RUN chown -R ${USERNAME}:${USERNAME} node_modules && \
 USER ${USERNAME}
 
 COPY --from=browser --chown=${USERNAME}:${USERNAME} ${PLAYWRIGHT_BROWSERS_PATH} ${PLAYWRIGHT_BROWSERS_PATH}
-COPY --chown=${USERNAME}:${USERNAME} cli.js oauth-server.js package.json ./
+# test-session-persistence.js is required here -- its own header comment documents
+# "docker exec pmin-mcpinfrastructure-playwright-1 node test-session-persistence.js"
+# as the canonical way to run it, which silently can't work without this line.
+COPY --chown=${USERNAME}:${USERNAME} cli.js oauth-server.js test-session-persistence.js package.json ./
 
 
 # OAuth proxy spawns playwright-mcp on port 8081 internally and exposes OAuth + MCP on $PORT
