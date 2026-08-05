@@ -416,7 +416,7 @@ Playwright MCP server supports following arguments. They can be provided in the 
 | --cdp-endpoint <endpoint> | CDP endpoint to connect to.<br>*env* `PLAYWRIGHT_MCP_CDP_ENDPOINT` |
 | --cdp-header <headers...> | CDP headers to send with the connect request, multiple can be specified.<br>*env* `PLAYWRIGHT_MCP_CDP_HEADERS` |
 | --cdp-timeout <timeout> | timeout in milliseconds for connecting to CDP endpoint, defaults to 30000ms<br>*env* `PLAYWRIGHT_MCP_CDP_TIMEOUT` |
-| --codegen <lang> | specify the language to use for code generation, possible values: "typescript", "none". Default is "typescript".<br>*env* `PLAYWRIGHT_MCP_CODEGEN` |
+| --codegen <lang> | specify the language to use for code generation, possible values: "typescript", "python", "java", "csharp", "none". Default is "typescript".<br>*env* `PLAYWRIGHT_MCP_CODEGEN` |
 | --config <path> | path to the configuration file.<br>*env* `PLAYWRIGHT_MCP_CONFIG` |
 | --console-level <level> | level of console messages to return: "error", "warning", "info", "debug". Each level includes the messages of more severe levels.<br>*env* `PLAYWRIGHT_MCP_CONSOLE_LEVEL` |
 | --device <device> | device to emulate, for example: "iPhone 15"<br>*env* `PLAYWRIGHT_MCP_DEVICE` |
@@ -435,7 +435,6 @@ Playwright MCP server supports following arguments. They can be provided in the 
 | --no-sandbox | disable the sandbox for all process types that are normally sandboxed.<br>*env* `PLAYWRIGHT_MCP_NO_SANDBOX` |
 | --output-dir <path> | path to the directory for output files.<br>*env* `PLAYWRIGHT_MCP_OUTPUT_DIR` |
 | --output-max-size <bytes> | Threshold for evicting old output files, in bytes.<br>*env* `PLAYWRIGHT_MCP_OUTPUT_MAX_SIZE` |
-| --output-mode <mode> | whether to save snapshots, console messages, network logs to a file or to the standard output. Can be "file" or "stdout". Default is "stdout".<br>*env* `PLAYWRIGHT_MCP_OUTPUT_MODE` |
 | --port <port> | port to listen on for SSE transport.<br>*env* `PLAYWRIGHT_MCP_PORT` |
 | --proxy-bypass <bypass> | comma-separated domains to bypass proxy, for example ".com,chromium.org,.domain.com"<br>*env* `PLAYWRIGHT_MCP_PROXY_BYPASS` |
 | --proxy-server <proxy> | specify proxy server, for example "http://myproxy:3128" or "socks5://myproxy:8080"<br>*env* `PLAYWRIGHT_MCP_PROXY_SERVER` |
@@ -443,11 +442,13 @@ Playwright MCP server supports following arguments. They can be provided in the 
 | --save-session | Whether to save the Playwright MCP session into the output directory.<br>*env* `PLAYWRIGHT_MCP_SAVE_SESSION` |
 | --secrets <path> | path to a file containing secrets in the dotenv format<br>*env* `PLAYWRIGHT_MCP_SECRETS_FILE` |
 | --shared-browser-context | reuse the same browser context between all connected HTTP clients.<br>*env* `PLAYWRIGHT_MCP_SHARED_BROWSER_CONTEXT` |
+| --snapshot-boxes | include each element's bounding box as [box=x,y,width,height] in snapshots. Coordinates are viewport-relative, in CSS pixels.<br>*env* `PLAYWRIGHT_MCP_SNAPSHOT_BOXES` |
 | --snapshot-mode <mode> | when taking snapshots for responses, specifies the mode to use. Can be "full" or "none". Default is "full".<br>*env* `PLAYWRIGHT_MCP_SNAPSHOT_MODE` |
 | --storage-state <path> | path to the storage state file for isolated sessions.<br>*env* `PLAYWRIGHT_MCP_STORAGE_STATE` |
 | --test-id-attribute <attribute> | specify the attribute to use for test ids, defaults to "data-testid"<br>*env* `PLAYWRIGHT_MCP_TEST_ID_ATTRIBUTE` |
 | --timeout-action <timeout> | specify action timeout in milliseconds, defaults to 5000ms<br>*env* `PLAYWRIGHT_MCP_TIMEOUT_ACTION` |
 | --timeout-navigation <timeout> | specify navigation timeout in milliseconds, defaults to 60000ms<br>*env* `PLAYWRIGHT_MCP_TIMEOUT_NAVIGATION` |
+| --timeout-settle <timeout> | how long to wait after each action for triggered work to settle, in milliseconds, defaults to 500ms<br>*env* `PLAYWRIGHT_MCP_TIMEOUT_SETTLE` |
 | --user-agent <ua string> | specify user agent string<br>*env* `PLAYWRIGHT_MCP_USER_AGENT` |
 | --user-data-dir <path> | path to the user data directory. If not specified, a temporary directory will be created.<br>*env* `PLAYWRIGHT_MCP_USER_DATA_DIR` |
 | --viewport-size <size> | specify browser viewport size in pixels, for example "1280x720"<br>*env* `PLAYWRIGHT_MCP_VIEWPORT_SIZE` |
@@ -729,6 +730,11 @@ npx @playwright/mcp@latest --config path/to/config.json
      * Configures default expect timeout: https://playwright.dev/docs/test-timeouts#expect-timeout. Defaults to 5000ms.
      */
     expect?: number;
+
+    /**
+     * How long to wait after each action for triggered work (navigations, requests) to settle before responding. Defaults to 500ms.
+     */
+    settle?: number;
   };
 
   /**
@@ -741,6 +747,12 @@ npx @playwright/mcp@latest --config path/to/config.json
      * When taking snapshots for responses, specifies the mode to use.
      */
     mode?: 'full' | 'none';
+
+    /**
+     * Whether to include each element's bounding box as [box=x,y,width,height] in snapshots.
+     * Coordinates are viewport-relative, in CSS pixels (Element.getBoundingClientRect).
+     */
+    boxes?: boolean;
   };
 
   /**
@@ -754,7 +766,7 @@ npx @playwright/mcp@latest --config path/to/config.json
   /**
    * Specify the language to use for code generation.
    */
-  codegen?: 'typescript' | 'none';
+  codegen?: 'typescript' | 'python' | 'java' | 'csharp' | 'none';
 }
 ```
 
@@ -1067,8 +1079,8 @@ http.createServer(async (req, res) => {
   - Parameters:
     - `element` (string, optional): Human-readable element description used to obtain permission to interact with the element
     - `target` (string, optional): Exact target element reference from the page snapshot, or a unique element selector
-    - `type` (string): Image format for the screenshot. Default is png.
-    - `filename` (string, optional): File name to save the screenshot to. Defaults to `page-{timestamp}.{png|jpeg}` if not specified. Prefer relative file names to stay within the output directory.
+    - `type` (string, optional): Image format for the screenshot. If unset, inferred from the filename extension, otherwise png.
+    - `filename` (string, optional): File name to save the screenshot to. Defaults to `page-{timestamp}.{png|jpeg|webp}` if not specified. Prefer relative file names to stay within the output directory.
     - `fullPage` (boolean, optional): When true, takes a screenshot of the full scrollable page, instead of the currently visible viewport. Cannot be used with element screenshots.
     - `scale` (string): Image resolution scale. "css" produces a screenshot sized in CSS pixels (smaller, consistent across devices). "device" produces a high-resolution screenshot using device pixels (larger, accounts for the device pixel ratio). Default is css.
   - Read-only: **true**

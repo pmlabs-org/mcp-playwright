@@ -210,6 +210,11 @@ export type Config = {
      * Configures default expect timeout: https://playwright.dev/docs/test-timeouts#expect-timeout. Defaults to 5000ms.
      */
     expect?: number;
+
+    /**
+     * How long to wait after each action for triggered work (navigations, requests) to settle before responding. Defaults to 500ms.
+     */
+    settle?: number;
   };
 
   /**
@@ -222,6 +227,12 @@ export type Config = {
      * When taking snapshots for responses, specifies the mode to use.
      */
     mode?: 'full' | 'none';
+
+    /**
+     * Whether to include each element's bounding box as [box=x,y,width,height] in snapshots.
+     * Coordinates are viewport-relative, in CSS pixels (Element.getBoundingClientRect).
+     */
+    boxes?: boolean;
   };
 
   /**
@@ -235,5 +246,5 @@ export type Config = {
   /**
    * Specify the language to use for code generation.
    */
-  codegen?: 'typescript' | 'none';
+  codegen?: 'typescript' | 'python' | 'java' | 'csharp' | 'none';
 };
