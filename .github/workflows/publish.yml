@@ -1,76 +1,15 @@
+# npm publishing (@next and @latest) is done by the ESRP pipeline,
+# see .azure-pipelines/publish.yml
 name: Publish
 on:
   workflow_dispatch:
-  schedule:
-    - cron: '0 8 * * *'
   release:
     types: [published]
 
 jobs:
-  publish-mcp-canary-npm:
-    if: github.event.schedule || github.event_name == 'workflow_dispatch'
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      id-token: write  # Required for OIDC npm publishing
-    steps:
-      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
-      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
-        with:
-          node-version: 24
-          registry-url: https://registry.npmjs.org/
-
-      - name: Get current date
-        id: date
-        run: echo "date=$(date +'%Y-%m-%d')" >> $GITHUB_OUTPUT
-
-      - name: Get current version
-        id: version
-        run: echo "version=$(node -p "require('./package.json').version")" >> $GITHUB_OUTPUT
-
-      - name: Set canary version
-        id: canary-version
-        run: echo "version=${{ steps.version.outputs.version }}-alpha-${{ steps.date.outputs.date }}" >> $GITHUB_OUTPUT
-
-      - name: Update package.json version
-        run: npm version ${{ steps.canary-version.outputs.version }} --no-git-tag-version
-
-      - run: npm ci
-      - run: npx playwright install --with-deps
-      - run: npm run lint
-      - run: npm run ctest
-
-      - name: Publish to npm with next tag
-        run: npm publish --tag next
-
-  publish-mcp-release-npm:
-    if: github.event_name == 'release'
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      id-token: write  # Required for OIDC npm publishing
-    steps:
-      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
-      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
-        with:
-          node-version: 24
-          registry-url: https://registry.npmjs.org/
-      - run: npm ci
-      - run: npx playwright install --with-deps
-      - run: npm run lint
-      - run: npm run ctest
-      - run: npm publish
-
   publish-mcp-release-registry:
-    # Runs on release (after npm publish succeeds) or via manual workflow_dispatch
-    # (e.g. to retroactively publish a version, in which case publish-mcp-release-npm
-    # is skipped — the always() + result check lets this job still run).
-    if: |
-      always() &&
-      (github.event_name == 'release' || github.event_name == 'workflow_dispatch') &&
-      needs.publish-mcp-release-npm.result != 'failure' &&
-      needs.publish-mcp-release-npm.result != 'cancelled'
-    needs: publish-mcp-release-npm
+    # Runs on release or via manual workflow_dispatch (e.g. to retroactively
+    # publish a version).
     runs-on: ubuntu-latest
     permissions:
       contents: read
