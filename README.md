@@ -1397,6 +1397,14 @@ http.createServer(async (req, res) => {
 
 <!-- NOTE: This has been generated via update-readme.js -->
 
+- **browser_start_recording**
+  - Title: Start recording user actions
+  - Description: Start recording actions that the user performs in the browser as Playwright code. Use it when the user wants to demonstrate a flow manually. Call browser_stop_recording when the user says they are done to retrieve the recorded actions.
+  - Parameters: None
+  - Read-only: **true**
+
+<!-- NOTE: This has been generated via update-readme.js -->
+
 - **browser_start_tracing**
   - Title: Start tracing
   - Description: Start trace recording
@@ -1411,6 +1419,14 @@ http.createServer(async (req, res) => {
   - Parameters:
     - `filename` (string, optional): Filename to save the video.
     - `size` (object, optional): Video size
+  - Read-only: **true**
+
+<!-- NOTE: This has been generated via update-readme.js -->
+
+- **browser_stop_recording**
+  - Title: Stop recording user actions
+  - Description: Stop the recording started with browser_start_recording and return the recorded actions as Playwright code.
+  - Parameters: None
   - Read-only: **true**
 
 <!-- NOTE: This has been generated via update-readme.js -->
