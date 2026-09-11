@@ -365,6 +365,7 @@ const server = http.createServer(async (req, res) => {
       const grant_type = body.grant_type;
 
       if (grant_type === 'authorization_code') {
+        if (body.client_id !== OAUTH_CLIENT_ID || body.client_secret !== OAUTH_CLIENT_SECRET) { json(res, 401, { error: 'invalid_client' }); return; }
         const { code, code_verifier, redirect_uri } = body;
         const stored = authCodes[code];
         if (!stored || stored.expiresAt < Date.now()) { json(res, 400, { error: 'invalid_grant' }); return; }
