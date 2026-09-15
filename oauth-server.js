@@ -8,9 +8,9 @@
  *   - Transparent proxy (including SSE streaming) to the internal MCP server
  *
  * Required env vars:
- *   MCP_AUTH_TOKEN      — shared secret issued as Bearer token after OAuth
- *   OAUTH_CLIENT_ID     — OAuth client ID (use "claude-pathfinder")
- *   OAUTH_CLIENT_SECRET — OAuth client secret
+ *   PLAYWRIGHT_MCP_AUTH_TOKEN      — shared secret issued as Bearer token after OAuth
+ *   PLAYWRIGHT_OAUTH_CLIENT_ID     — OAuth client ID (use "claude-pathfinder")
+ *   PLAYWRIGHT_OAUTH_CLIENT_SECRET — OAuth client secret
  *
  * Optional env vars:
  *   PORT                — public port (default: 8080)
@@ -24,9 +24,9 @@ const { URLSearchParams } = require('url');
 
 const PORT = parseInt(process.env.PORT || '8080', 10);
 const INTERNAL_PORT = 8081;
-const AUTH_TOKEN = (process.env.MCP_AUTH_TOKEN || '').trim();
-const OAUTH_CLIENT_ID = (process.env.OAUTH_CLIENT_ID || 'claude-pathfinder').trim();
-const OAUTH_CLIENT_SECRET = (process.env.OAUTH_CLIENT_SECRET || '').trim();
+const AUTH_TOKEN = (process.env.PLAYWRIGHT_MCP_AUTH_TOKEN || '').trim();
+const OAUTH_CLIENT_ID = (process.env.PLAYWRIGHT_OAUTH_CLIENT_ID || 'claude-pathfinder').trim();
+const OAUTH_CLIENT_SECRET = (process.env.PLAYWRIGHT_OAUTH_CLIENT_SECRET || '').trim();
 
 /** @type {Record<string, {codeChallenge:string, codeChallengeMethod:string, redirectUri:string, expiresAt:number}>} */
 const authCodes = {};
