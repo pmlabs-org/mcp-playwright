@@ -53,6 +53,9 @@ extends:
             version: '24.x'
           displayName: "Install Node.js"
 
+        # Warn-only for now: no release tag contains this pipeline yet (v0.0.81 predates
+        # it), so the first stable image has to be published from main. Restore the
+        # 'exit 1' once a tag cut after this pipeline exists.
         - task: Bash@3
           displayName: "Check the ref matches the release channel"
           inputs:
@@ -61,9 +64,7 @@ extends:
               set -e
               VERSION=$(node -p "require('./package.json').version")
               if [[ "$RELEASE_CHANNEL" == "stable" && "$BUILD_SOURCE_BRANCH" != "refs/tags/v$VERSION" ]]; then
-                echo "ERROR: stable images can only be published from the 'v$VERSION' tag."
-                echo "Unexpected ref: $BUILD_SOURCE_BRANCH"
-                exit 1
+                echo "##vso[task.logissue type=warning]stable images should only be published from the 'v$VERSION' tag, got '$BUILD_SOURCE_BRANCH'"
               fi
           env:
             BUILD_SOURCE_BRANCH: $(Build.SourceBranch)
