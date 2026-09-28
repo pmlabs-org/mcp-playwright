@@ -7,7 +7,7 @@ function copyConfig() {
   const dst = path.join(__dirname, 'config.d.ts');
   let content = fs.readFileSync(src, 'utf-8');
   content = content.replace(
-    "import type * as playwright from 'playwright-core';",
+    /^import type \* as playwright from '[^']+';$/m,
     "import type * as playwright from 'playwright';"
   );
   fs.writeFileSync(dst, content);

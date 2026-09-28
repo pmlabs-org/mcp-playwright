@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import type * as playwright from '../../..';
+import type * as playwright from 'playwright';
 
 export type ToolCapability =
   'config' |
