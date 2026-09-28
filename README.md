@@ -996,6 +996,7 @@ http.createServer(async (req, res) => {
   - Parameters:
     - `text` (string, optional): Plain text to search for in the page snapshot (case-insensitive substring match). Provide either text or regex, not both.
     - `regex` (string, optional): Regular expression to search for in the page snapshot. Matching is case-sensitive by default; wrap the pattern in slashes to add flags, e.g. "/error/i" for case-insensitive. Provide either text or regex, not both.
+    - `filename` (string, optional): Save results to a file instead of returning them in the response. Relative file names are resolved against the workspace root.
   - Read-only: **true**
 
 <!-- NOTE: This has been generated via update-readme.js -->
@@ -1142,7 +1143,7 @@ http.createServer(async (req, res) => {
   - Title: Wait for
   - Description: Wait for text to appear or disappear or a specified time to pass
   - Parameters:
-    - `time` (number, optional): The time to wait in seconds
+    - `time` (number, optional): The time to wait in seconds, at most 30
     - `text` (string, optional): The text to wait for
     - `textGone` (string, optional): The text to wait for to disappear
   - Read-only: **false**
