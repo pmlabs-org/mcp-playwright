@@ -1,0 +1,4 @@
+ea43eee # Azure Pipelines Dockerfile (DO-incompatible)
+82b984f # Azure mirror routing (DO-incompatible)
+d3b285f # node LTS base (empty after ours)
+e87bb89 # tini via Azure mirror (DO-incompatible)
