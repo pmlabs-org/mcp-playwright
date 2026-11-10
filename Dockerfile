@@ -17,7 +17,9 @@ RUN --mount=type=cache,target=/root/.npm,sharing=locked,id=npm-cache \
     --mount=type=bind,source=package-lock.json,target=package-lock.json \
   npm ci --omit=dev && \
   # Install system dependencies for playwright
-  npx -y playwright-core install-deps chromium
+  npx -y playwright-core install-deps chromium && \
+  # Node.js links against libatomic (since Node.js 25). Ported from upstream 0132189.
+  apt-get install -y --no-install-recommends libatomic1
 
 # ------------------------------
 # Builder
