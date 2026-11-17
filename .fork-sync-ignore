@@ -2,3 +2,17 @@ ea43eee # Azure Pipelines Dockerfile (DO-incompatible)
 82b984f # Azure mirror routing (DO-incompatible)
 d3b285f # node LTS base (empty after ours)
 e87bb89 # tini via Azure mirror (DO-incompatible)
+
+# --- 2026-11-17 fork-conflict review (Trello 7MfteNnC) ---
+# 0132189 installs libatomic1: applied by hand as 6895161 (our Dockerfile has no tini/apt-mirror
+# block, so the cherry-pick conflicted and only the libatomic1 line was applied). Patch-id differs,
+# so list it to stop the sync re-picking it.
+01321897ca8f7092a47cef168f2d497c2e5bff92 # already applied as 6895161 (hand-resolved)
+
+# Upstream Docker image rework that targets Dockerfile blocks our fork does not have (our image is
+# node:22-bookworm-slim without upstream's tini/apt-mirror/ubuntu base). Conflicts with our Dockerfile.
+# Revisit together if we ever move the image to upstream's Dockerfile.
+992097a # fix(docker): upgrade base image packages during the build - Dockerfile diverges
+78eca85 # drop Acquire::Retries=0 from the upgrade step - follow-up to 992097a
+5b000eb # base the image on ubuntu:noble - our base is node:22-bookworm-slim
+a62ea28 # pin exact Node.js in the Docker image - Dockerfile diverges
