@@ -9,6 +9,9 @@ FROM node:22-bookworm-slim AS base
 
 ARG PLAYWRIGHT_BROWSERS_PATH
 ENV PLAYWRIGHT_BROWSERS_PATH=${PLAYWRIGHT_BROWSERS_PATH}
+# npm turns on the Node.js compile cache, which writes to /tmp. Turn it off during the build.
+# Ported from upstream da20434 (our Dockerfile has none of upstream's mirror/Node-version ARGs).
+ARG NODE_DISABLE_COMPILE_CACHE=1
 
 WORKDIR /app
 
