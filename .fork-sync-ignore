@@ -16,3 +16,7 @@ e87bb89 # tini via Azure mirror (DO-incompatible)
 78eca85 # drop Acquire::Retries=0 from the upgrade step - follow-up to 992097a
 5b000eb # base the image on ubuntu:noble - our base is node:22-bookworm-slim
 a62ea28 # pin exact Node.js in the Docker image - Dockerfile diverges
+
+# da20434 Trivy image secret scan + NODE_DISABLE_COMPILE_CACHE: applied by hand 2026-11-24 (Dockerfile ARG ported; ci.yml step as-is).
+# Patch-id differs from upstream because the Dockerfile hunk was hand-resolved, so list it to stop re-picking.
+da20434f2b0eee089685837c2e804fad2a34dc41 # already applied by hand (see commit "devops(docker): scan the image for secrets with Trivy")
